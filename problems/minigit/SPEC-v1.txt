@@ -153,6 +153,16 @@ Else traverse parents:
 commit <hash>
 Date: <timestamp>
 Message: <message>
+If no commits:
+    print "No commits"
+
+Else traverse parents:
+
+commit <hash>
+Date: <timestamp>
+Message: <message>
+
+Commits must be displayed in reverse chronological order (latest commit first).
 
 ========================================
 5. Determinism Rules
