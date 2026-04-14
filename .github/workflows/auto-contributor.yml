@@ -1,7 +1,7 @@
 name: "Auto: Update Contributors"
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
     types: [closed]
 
@@ -19,13 +19,14 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Determine contribution type
         id: contrib
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Get files changed in the merged PR
-          CHANGED_FILES=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files[].path')
+          CHANGED_FILES=$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path')
           echo "Changed files: $CHANGED_FILES"
 
           ROLE=""
@@ -41,15 +42,13 @@ jobs:
 
           echo "role=$ROLE" >> $GITHUB_OUTPUT
           echo "Detected role: $ROLE"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update README.md Hall of Fame
+        env:
+          USERNAME: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ROLE: ${{ steps.contrib.outputs.role }}
         run: |
-          USERNAME="${{ github.event.pull_request.user.login }}"
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          ROLE="${{ steps.contrib.outputs.role }}"
-
           echo "Adding $USERNAME as $ROLE from PR #$PR_NUMBER"
 
           # Check if user already exists in README
@@ -58,66 +57,36 @@ jobs:
             exit 0
           fi
 
-          # Generate the new contributor cell
-          NEW_CELL="[\<img src=\"https://github.com/$USERNAME.png?size=100\" width=\"100px;\"/\>\<br /\>\<sub\>\<b\>$USERNAME\</b\>\</sub\>](https://github.com/$USERNAME)"
-
-          # Create a Python script to update the README
+          # Use Python to safely edit the README
           python3 << 'PYTHON_SCRIPT'
-          import re
-          import sys
+          import os, re, sys
 
-          username = "$USERNAME"
-          role = "$ROLE"
+          username = os.environ["USERNAME"]
+          role = os.environ["ROLE"]
+
           new_cell = f'[<img src="https://github.com/{username}.png?size=100" width="100px;"/><br /><sub><b>{username}</b></sub>](https://github.com/{username})'
 
           with open("README.md", "r") as f:
               content = f.read()
 
-          # Find the Hall of Fame table section
-          # Look for the table between "Hall of Fame" and "### Become a Legend"
-          hall_pattern = r'(## 🏆 Hall of Fame.*?<div align="center">\s*\n)(.*?)(</div>)'
-          match = re.search(hall_pattern, content, re.DOTALL)
-
-          if not match:
-              print("ERROR: Could not find Hall of Fame section in README.md")
+          # Find the closing </div> after the Hall of Fame table
+          # Insert a new row before </div>
+          marker = "</div>"
+          hall_section = content.find("## 🏆 Hall of Fame")
+          if hall_section == -1:
+              print("ERROR: Could not find Hall of Fame section")
               sys.exit(1)
 
-          table_content = match.group(2)
+          div_close = content.find(marker, hall_section)
+          if div_close == -1:
+              print("ERROR: Could not find closing </div>")
+              sys.exit(1)
 
-          # Parse existing table rows to find where to add
-          # Each row has | cell | cell | cell | format
-          rows = [line for line in table_content.strip().split('\n') if line.strip().startswith('|')]
+          # Build new contributor row
+          new_row = f'\n| {new_cell} |\n| :---: |\n| {role} |\n\n'
 
-          if len(rows) >= 2:
-              # Get the data row (first row with actual content)
-              data_rows = [r for r in rows if '---' not in r and 'img' in r]
-              separator_rows = [r for r in rows if '---' in r]
-              role_rows = [r for r in rows if '---' not in r and 'img' not in r and r.strip().startswith('|')]
-
-              if data_rows:
-                  # Count cells in last data row
-                  last_data_row = data_rows[-1]
-                  cells = [c.strip() for c in last_data_row.split('|')[1:-1]]
-                  num_cols = len(cells)
-
-                  if num_cols < 3:
-                      # Add to current row
-                      # Append cell to the last data row and role row
-                      new_data_row = last_data_row.rstrip(' |') + f' | {new_cell} |'
-                      new_role_row = role_rows[-1].rstrip(' |') + f' | {role} |' if role_rows else f'| {role} |'
-                      new_separator = separator_rows[-1].rstrip(' |') + ' | :---: |' if separator_rows else '| :---: |'
-
-                      table_content = table_content.replace(last_data_row, new_data_row)
-                      if role_rows:
-                          table_content = table_content.replace(role_rows[-1], new_role_row)
-                      if separator_rows:
-                          table_content = table_content.replace(separator_rows[-1], new_separator)
-                  else:
-                      # Start new row (3 columns per row)
-                      new_row = f'\n| {new_cell} |\n| :---: |\n| {role} |\n'
-                      table_content = table_content.rstrip() + new_row + '\n'
-
-          new_content = content[:match.start(2)] + table_content + content[match.end(2):]
+          # Insert before </div>
+          new_content = content[:div_close] + new_row + content[div_close:]
 
           with open("README.md", "w") as f:
               f.write(new_content)
@@ -125,10 +94,55 @@ jobs:
           print(f"Successfully added {username} to Hall of Fame as {role}")
           PYTHON_SCRIPT
 
+      - name: Update CHANGELOG.md
+        env:
+          USERNAME: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          ROLE: ${{ steps.contrib.outputs.role }}
+        run: |
+          python3 << 'PYTHON_SCRIPT'
+          import os, sys
+          from datetime import datetime
+
+          username = os.environ["USERNAME"]
+          pr_number = os.environ["PR_NUMBER"]
+          pr_title = os.environ["PR_TITLE"]
+          role = os.environ["ROLE"]
+
+          with open("CHANGELOG.md", "r") as f:
+              content = f.read()
+
+          # Find the [Unreleased] section
+          unreleased_marker = "## [Unreleased]"
+          idx = content.find(unreleased_marker)
+          if idx == -1:
+              print("ERROR: Could not find [Unreleased] section in CHANGELOG.md")
+              sys.exit(1)
+
+          # Insert after the [Unreleased] header line
+          insert_pos = content.find("\n", idx) + 1
+
+          # Check if this PR is already recorded
+          if f"#{pr_number}" in content:
+              print(f"PR #{pr_number} already in CHANGELOG.md, skipping.")
+              sys.exit(0)
+
+          entry = f"\n- {pr_title} by @{username} (#{pr_number}) — {role}\n"
+          new_content = content[:insert_pos] + entry + content[insert_pos:]
+
+          with open("CHANGELOG.md", "w") as f:
+              f.write(new_content)
+
+          print(f"Added PR #{pr_number} to CHANGELOG.md [Unreleased] section")
+          PYTHON_SCRIPT
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git diff --cached --quiet || git commit -m "docs: add @${{ github.event.pull_request.user.login }} to Hall of Fame (#${{ github.event.pull_request.number }})"
-          git push origin main
+          git add README.md CHANGELOG.md
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "docs: add @${{ github.event.pull_request.user.login }} to Hall of Fame (#${{ github.event.pull_request.number }})"
+          git push
+

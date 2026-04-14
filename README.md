@@ -137,6 +137,10 @@ This project thrives on the brilliant minds driving it forward. We celebrate eve
 | :---: | :---: | :---: |
 | 🚀 Visionary | 💻 Core Architect | 💻 Core Architect |
 
+| [<img src="https://github.com/knewral.png?size=100" width="100px;"/><br /><sub><b>knewral</b></sub>](https://github.com/knewral) | [<img src="https://github.com/Elvannegis.png?size=100" width="100px;"/><br /><sub><b>Elvannegis</b></sub>](https://github.com/Elvannegis) | |
+| :---: | :---: | :---: |
+| 🎯 Problem Architect | 🎯 Problem Architect | |
+
 </div>
 
 ### Become a Legend
