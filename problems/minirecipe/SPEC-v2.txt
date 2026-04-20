@@ -1,0 +1,31 @@
+PROJECT: mini-recipe (V2)
+AUTHOR: Merve Zeynep Beyazal
+
+1. PROJECT DESCRIPTION
+mini-recipe is a command-line recipe management tool. V2 introduces enhanced search, 
+deletion capabilities, and improved code reliability.
+
+2. DATA STRUCTURE
+- Storage: ".minirecipe/recipes.dat"
+- Format: ID|Recipe_Name|Ingredients|Portions
+
+3. IMPROVEMENTS & NEW FEATURES (V2)
+
+3.1 Enhanced Search (Update)
+- The 'search' command now scans both the recipe name and the ingredient list.
+- Requirement: Must be case-insensitive.
+
+3.2 Delete Command (New)
+- Usage: python minirecipe.py delete <id>
+- Requirement: Removes the recipe with the specified ID from the data file.
+- Error Handling: If ID is not found, returns "Recipe #ID not found."
+
+3.3 Robust File Handling (Refactor)
+- Implementation Requirement: All file I/O must use the 'with open' context manager 
+  to ensure data integrity and prevent file locks.
+
+4. EXISTING COMMANDS (V1)
+- init: Initializes the project folder and database.
+- add: Adds a new recipe with a unique ID.
+- list: Displays all saved recipes.
+- portion: Calculates ingredient scaling based on target portions.
