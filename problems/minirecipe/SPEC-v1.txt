@@ -1,0 +1,31 @@
+PROJECT: mini-recipe (V1)
+AUTHOR: Merve Zeynep Beyazal
+
+1. PROJECT DESCRIPTION
+mini-recipe is a simple command-line recipe management tool.
+
+2. DATA STRUCTURE
+- Data is stored in the "recipes.dat" file inside the ".minirecipe" directory in the project root.
+- Format: ID|Recipe_Name|Ingredients_Comma_Separated|Portion
+
+3. COMMANDS AND ACCEPTANCE CRITERIA
+
+3.1 init
+- Usage: python minirecipe.py init
+- Expected: Creates the ".minirecipe" directory and "recipes.dat" file. If it already exists, returns a warning.
+
+3.2 add
+- Usage: python minirecipe.py add "<recipe_name>" "<ingredients_comma_separated>" <base_portions>
+- Expected: Adds the recipe to the data file and assigns a unique ID.
+
+3.3 list
+- Usage: python minirecipe.py list
+- Expected: Prints all recipes in the file to the screen in the specified format.
+
+3.4 search
+- Usage: python minirecipe.py search "<ingredient>"
+- Expected: Lists recipes containing the specified ingredient (case-insensitive).
+
+3.5 portion
+- Usage: python minirecipe.py portion <id> <target_portions>
+- Expected: Calculates the multiplier required for the existing ingredients to reach the target portion size.
